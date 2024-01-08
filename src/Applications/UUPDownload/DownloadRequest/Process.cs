@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Gustave Monce and Contributors
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -161,157 +161,155 @@ namespace UUPDownload.DownloadRequest
             }
 
             Logging.Log($"Appx fixup applied.");
-        }
-
-        private static async Task CheckAndDownloadUpdates(OSSkuId ReportingSku,
-                    string ReportingVersion,
-                    MachineType MachineType,
-                    string FlightRing,
-                    string FlightingBranchName,
-                    string BranchReadinessLevel,
-                    string CurrentBranch,
-                    string ReleaseType,
-                    bool SyncCurrentVersionOnly,
-                    string ContentType,
-                    string Mail,
-                    string Password,
-                    string OutputFolder,
-                    string Language,
-                    string Edition)
-        {
-            Logging.Log("Checking for updates...");
-
-            CTAC ctac = new(ReportingSku, ReportingVersion, MachineType, FlightRing, FlightingBranchName, BranchReadinessLevel, CurrentBranch, ReleaseType, SyncCurrentVersionOnly, ContentType: ContentType);
-            string token = string.Empty;
-            if (!string.IsNullOrEmpty(Mail) && !string.IsNullOrEmpty(Password))
-            {
-                token = await MBIHelper.GenerateMicrosoftAccountTokenAsync(Mail, Password);
             }
 
-            IEnumerable<UpdateData> data = await FE3Handler.GetUpdates(null, ctac, token, FileExchangeV3UpdateFilter.ProductRelease);
-            //data = data.Select(x => UpdateUtils.TrimDeltasFromUpdateData(x));
-
-            if (!data.Any())
+            private static async Task CheckAndDownloadUpdates(OSSkuId ReportingSku,
+                        string ReportingVersion,
+                        MachineType MachineType,
+                        string FlightRing,
+                        string FlightingBranchName,
+                        string BranchReadinessLevel,
+                        string CurrentBranch,
+                        string ReleaseType,
+                        bool SyncCurrentVersionOnly,
+                        string ContentType,
+                        string Mail,
+                        string Password,
+                        string OutputFolder,
+                        string Language,
+                        string Edition)
             {
-                Logging.Log("No updates found that matched the specified criteria.", Logging.LoggingLevel.Error);
-            }
-            else
-            {
-                Logging.Log($"Found {data.Count()} update(s):");
+                Logging.Log("Checking for updates...");
 
-                for (int i = 0; i < data.Count(); i++)
+                CTAC ctac = new(ReportingSku, ReportingVersion, MachineType, FlightRing, FlightingBranchName, BranchReadinessLevel, CurrentBranch, ReleaseType, SyncCurrentVersionOnly, ContentType: ContentType);
+                string token = string.Empty;
+                if (!string.IsNullOrEmpty(Mail) && !string.IsNullOrEmpty(Password))
                 {
-                    UpdateData update = data.ElementAt(i);
-
-                    Logging.Log($"{i}: Title: {update.Xml.LocalizedProperties.Title}");
-                    Logging.Log($"{i}: Description: {update.Xml.LocalizedProperties.Description}");
+                    token = await MBIHelper.GenerateMicrosoftAccountTokenAsync(Mail, Password);
                 }
 
-                foreach (UpdateData update in data)
-                {
-                    Logging.Log("Title: " + update.Xml.LocalizedProperties.Title);
-                    Logging.Log("Description: " + update.Xml.LocalizedProperties.Description);
+                IEnumerable<UpdateData> data = await FE3Handler.GetUpdates(null, ctac, token, FileExchangeV3UpdateFilter.ProductRelease);
+                //data = data.Select(x => UpdateUtils.TrimDeltasFromUpdateData(x));
 
-                    await ProcessUpdateAsync(update, OutputFolder, MachineType, Language, Edition, true);
+                if (!data.Any())
+                {
+                    Logging.Log("No updates found that matched the specified criteria.", Logging.LoggingLevel.Error);
                 }
-            }
-            Logging.Log("Completed.");
-            if (Debugger.IsAttached)
-            {
-                _ = Console.ReadLine();
-            }
-        }
-
-        private static async Task ProcessUpdateAsync(UpdateData update, string pOutputFolder, MachineType MachineType, string Language = "", string Edition = "", bool WriteMetadata = true)
-        {
-            string buildstr = "";
-            IEnumerable<string> languages = null;
-
-            Logging.Log("Gathering update metadata...");
-
-            HashSet<CompDB> compDBs = await update.GetCompDBsAsync();
-
-            await Task.WhenAll(
-                Task.Run(async () => buildstr = await update.GetBuildStringAsync()),
-                Task.Run(async () => languages = await update.GetAvailableLanguagesAsync()));
-
-            buildstr ??= "";
-
-            //
-            // Windows Phone Build Lab says hi
-            //
-            // Quirk with Nickel+ Windows NT builds where specific binaries
-            // exempted from neutral build info gets the wrong build tags
-            //
-            if (buildstr.Contains("GitEnlistment(winpbld)"))
-            {
-                // We need to fallback to CompDB (less accurate but we have no choice, due to CUs etc...
-
-                // Loop through all CompDBs to find the highest version reported
-                CompDB selectedCompDB = null;
-                Version currentHighest = null;
-                foreach (CompDB compDB in compDBs)
+                else
                 {
-                    if (compDB.TargetOSVersion != null)
+                    Logging.Log($"Found {data.Count()} update(s):");
+
+                    for (int i = 0; i < data.Count(); i++)
                     {
-                        if (Version.TryParse(compDB.TargetOSVersion, out Version currentVer))
+                        UpdateData update = data.ElementAt(i);
+
+                        Logging.Log($"{i}: Title: {update.Xml.LocalizedProperties.Title}");
+                        Logging.Log($"{i}: Description: {update.Xml.LocalizedProperties.Description}");
+                    }
+
+                    foreach (UpdateData update in data)
+                    {
+                        Logging.Log("Title: " + update.Xml.LocalizedProperties.Title);
+                        Logging.Log("Description: " + update.Xml.LocalizedProperties.Description);
+
+                        await ProcessUpdateAsync(update, OutputFolder, MachineType, Language, Edition, true);
+                    }
+                }
+                Logging.Log("Completed.");
+                if (Debugger.IsAttached)
+                {
+                    _ = Console.ReadLine();
+                }
+            }
+
+            private static async Task ProcessUpdateAsync(UpdateData update, string pOutputFolder, MachineType MachineType, string Language = "", string Edition = "", bool WriteMetadata = true)
+            {
+                string buildstr = "";
+                IEnumerable<string> languages = null;
+
+                Logging.Log("Gathering update metadata...");
+
+                HashSet<CompDB> compDBs = await update.GetCompDBsAsync();
+
+                await Task.WhenAll(
+                    Task.Run(async () => buildstr = await update.GetBuildStringAsync()),
+                    Task.Run(async () => languages = await update.GetAvailableLanguagesAsync()));
+
+                buildstr ??= "";
+
+                //
+                // Windows Phone Build Lab says hi
+                //
+                // Quirk with Nickel+ Windows NT builds where specific binaries
+                // exempted from neutral build info gets the wrong build tags
+                //
+                if (buildstr.Contains("GitEnlistment(winpbld)"))
+                {
+                    // We need to fallback to CompDB (less accurate but we have no choice, due to CUs etc...
+
+                    // Loop through all CompDBs to find the highest version reported
+                    CompDB selectedCompDB = null;
+                    Version currentHighest = null;
+                    foreach (CompDB compDB in compDBs)
+                    {
+                        if (compDB.TargetOSVersion != null)
                         {
-                            if (currentHighest == null || (currentVer != null && currentVer.GreaterThan(currentHighest)))
+                            if (Version.TryParse(compDB.TargetOSVersion, out Version currentVer))
                             {
-                                if (!string.IsNullOrEmpty(compDB.TargetBuildInfo) && !string.IsNullOrEmpty(compDB.TargetOSVersion))
+                                if (currentHighest == null || (currentVer != null && currentVer.GreaterThan(currentHighest)))
                                 {
-                                    currentHighest = currentVer;
-                                    selectedCompDB = compDB;
+                                    if (!string.IsNullOrEmpty(compDB.TargetBuildInfo) && !string.IsNullOrEmpty(compDB.TargetOSVersion))
+                                    {
+                                        currentHighest = currentVer;
+                                        selectedCompDB = compDB;
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                // We found a suitable CompDB is it is not null
-                if (selectedCompDB != null)
-                {
-                    // Example format:
-                    // TargetBuildInfo="rs_prerelease_flt.22509.1011.211120-1700"
-                    // TargetOSVersion="10.0.22509.1011"
-
-                    buildstr = $"{selectedCompDB.TargetOSVersion} ({selectedCompDB.TargetBuildInfo.Split(".")[0]}.{selectedCompDB.TargetBuildInfo.Split(".")[3]})";
-                }
-            }
-
-            if (string.IsNullOrEmpty(buildstr) && update.Xml.LocalizedProperties.Title.Contains("(UUP-CTv2)"))
-            {
-                string unformattedBase = update.Xml.LocalizedProperties.Title.Split(" ")[0];
-                buildstr = $"10.0.{unformattedBase.Split(".")[0]}.{unformattedBase.Split(".")[1]} ({unformattedBase.Split(".")[2]}.{unformattedBase.Split(".")[3]})";
-            }
-            else if (string.IsNullOrEmpty(buildstr))
-            {
-                buildstr = update.Xml.LocalizedProperties.Title;
-            }
-
-            Logging.Log("Build String: " + buildstr);
-            Logging.Log("Languages: " + string.Join(", ", languages));
-
-            /*Logging.Log("Parsing CompDBs...");
-
-            if (compDBs != null)
-            {
-                Package editionPackPkg = compDBs.GetEditionPackFromCompDBs();
-                if (editionPackPkg != null)
-                {
-                    string editionPkg = await update.DownloadFileFromDigestAsync(editionPackPkg.Payload.PayloadItem.First(x => !x.Path.EndsWith(".psf")).PayloadHash);
-                    BuildTargets.EditionPlanningWithLanguage[] plans = await Task.WhenAll(languages.Select(x => update.GetTargetedPlanAsync(x, editionPkg)));
-
-                    foreach (BuildTargets.EditionPlanningWithLanguage plan in plans)
+                    // We found a suitable CompDB is it is not null
+                    if (selectedCompDB != null)
                     {
-                        Logging.Log("");
-                        Logging.Log("Editions available for language: " + plan.LanguageCode);
-                        plan.EditionTargets.PrintAvailablePlan();
+                        // Example format:
+                        // TargetBuildInfo="rs_prerelease_flt.22509.1011.211120-1700"
+                        // TargetOSVersion="10.0.22509.1011"
+
+                        buildstr = $"{selectedCompDB.TargetOSVersion} ({selectedCompDB.TargetBuildInfo.Split(".")[0]}.{selectedCompDB.TargetBuildInfo.Split(".")[3]})";
                     }
                 }
-            }*/
 
-            _ = await UnifiedUpdatePlatform.Services.WindowsUpdate.Downloads.UpdateUtils.ProcessUpdateAsync(update, pOutputFolder, MachineType, new ReportProgress(), Language, Edition, WriteMetadata);
-        }
-    }
-}
+                if (string.IsNullOrEmpty(buildstr) && update.Xml.LocalizedProperties.Title.Contains("(UUP-CTv2)"))
+                {
+                    string unformattedBase = update.Xml.LocalizedProperties.Title.Split(" ")[0];
+                    buildstr = $"10.0.{unformattedBase.Split(".")[0]}.{unformattedBase.Split(".")[1]} ({unformattedBase.Split(".")[2]}.{unformattedBase.Split(".")[3]})";
+                }
+                else if (string.IsNullOrEmpty(buildstr))
+                {
+                    buildstr = update.Xml.LocalizedProperties.Title;
+                }
+
+                Logging.Log("Build String: " + buildstr);
+                Logging.Log("Languages: " + string.Join(", ", languages));
+
+                /*Logging.Log("Parsing CompDBs...");
+
+                if (compDBs != null)
+                {
+                    Package editionPackPkg = compDBs.GetEditionPackFromCompDBs();
+                    if (editionPackPkg != null)
+                    {
+                        string editionPkg = await update.DownloadFileFromDigestAsync(editionPackPkg.Payload.PayloadItem.First(x => !x.Path.EndsWith(".psf")).PayloadHash);
+                        BuildTargets.EditionPlanningWithLanguage[] plans = await Task.WhenAll(languages.Select(x => update.GetTargetedPlanAsync(x, editionPkg)));
+
+                        foreach (BuildTargets.EditionPlanningWithLanguage plan in plans)
+                        {
+                            Logging.Log("");
+                            Logging.Log("Editions available for language: " + plan.LanguageCode);
+                            plan.EditionTargets.PrintAvailablePlan();
+                        }
+                    }
+                }*/
+
+                _ = await UnifiedUpdatePlatform.Services.WindowsUpdate.Downloads.UpdateUtils.ProcessUpdateAsync(update, pOutputFolder, MachineType, new ReportProgress(), Language, Edition, WriteMetadata);
+            }
